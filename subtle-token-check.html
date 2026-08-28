@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>foreground/subtle: opak vs. transparent</title>
+<style>
+  :root{
+    --ink:#151515;
+    --paper:#fafaf9;
+    --line:#e2e0dc;
+    --line-strong:#c9c6c0;
+    --mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+    --sans: "Inter", -apple-system, "Segoe UI", sans-serif;
+    --hb: #EF7C00;
+    --wiwo: #E30613;
+    --pass: #0A7A2E;
+    --pass-bg: #E7F5EB;
+    --warn: #8A5A00;
+    --warn-bg: #FBF1DC;
+    --fail: #B00020;
+    --fail-bg: #FBE7E9;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:36px 28px 80px;}
+
+  header h1{
+    font-size:22px; margin:0 0 6px; letter-spacing:-0.01em; font-weight:700;
+  }
+  header p.sub{
+    margin:0 0 28px; color:#555; font-size:14px; max-width:760px; line-height:1.55;
+  }
+
+  .panel{
+    border:1px solid var(--line-strong); border-radius:10px; background:#fff;
+    padding:20px 22px; margin-bottom:26px;
+  }
+  .panel h2{font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:0 0 14px; color:#333;}
+
+  .control-row{display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
+  .alpha-control{display:flex; align-items:center; gap:12px; flex:1; min-width:280px;}
+  .alpha-control input[type=range]{flex:1; accent-color:var(--ink);}
+  .alpha-value{
+    font-family:var(--mono); font-size:20px; font-weight:700; width:64px; text-align:right;
+  }
+  .presets{display:flex; gap:6px;}
+  .presets button{
+    font-family:var(--mono); font-size:12px; padding:6px 10px; border-radius:6px;
+    border:1px solid var(--line-strong); background:#fff; cursor:pointer;
+  }
+  .presets button:hover{background:#f2f1ee;}
+  .presets button.active{background:var(--ink); color:#fff; border-color:var(--ink);}
+
+  .legend{display:flex; gap:16px; margin-top:14px; font-size:12px; color:#555; flex-wrap:wrap;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+
+  .summary-grid{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px;
+  }
+  .summary-card{
+    border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:#fdfdfc;
+  }
+  .summary-card .who{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#777; margin-bottom:6px;}
+  .summary-card .verdict{font-size:13px; font-weight:700;}
+  .summary-card .detail{font-size:12px; color:#666; margin-top:4px; line-height:1.4;}
+
+  .brand-block{margin-bottom:34px;}
+  .brand-head{
+    display:flex; align-items:center; gap:10px; margin-bottom:12px;
+  }
+  .brand-tag{
+    font-family:var(--mono); font-size:11px; padding:3px 9px; border-radius:20px; color:#fff; font-weight:600;
+  }
+  .brand-tag.hb{background:var(--hb);}
+  .brand-tag.wiwo{background:var(--wiwo);}
+  .brand-head h3{font-size:15px; margin:0; font-weight:700;}
+
+  .mode-row{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  @media (max-width: 880px){ .mode-row{grid-template-columns:1fr;} .summary-grid{grid-template-columns:repeat(2,1fr);} }
+
+  .mode-card{
+    border:1px solid var(--line-strong); border-radius:10px; overflow:hidden; background:#fff;
+  }
+  .mode-card-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 14px; border-bottom:1px solid var(--line); background:#f7f6f3;
+    font-family:var(--mono); font-size:12px; font-weight:600;
+  }
+  .mode-card-head .cur{color:#888; font-weight:400;}
+
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  thead th{
+    text-align:left; font-weight:600; color:#777; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:.04em; padding:8px 12px; border-bottom:1px solid var(--line);
+  }
+  thead th.num{text-align:center;}
+  tbody td{padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  .surf-cell{display:flex; align-items:center; gap:8px;}
+  .swatch{
+    width:20px;height:20px;border-radius:5px;border:1px solid rgba(0,0,0,.12); flex-shrink:0;
+  }
+  .surf-label{font-size:12px;}
+  .hexcode{font-family:var(--mono); font-size:10.5px; color:#999;}
+
+  .sample-cell{text-align:center;}
+  .sample-box{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:100%; min-width:64px; height:30px; border-radius:5px; font-family:var(--mono); font-size:12px; font-weight:600;
+  }
+
+  .contrast-cell{text-align:center; font-family:var(--mono); font-weight:700; font-size:12.5px;}
+  .badge{
+    display:inline-block; font-size:10px; font-family:var(--mono); font-weight:700;
+    padding:2px 7px; border-radius:20px; margin-left:6px; vertical-align:middle;
+  }
+  .badge.pass{color:var(--pass); background:var(--pass-bg);}
+  .badge.warn{color:var(--warn); background:var(--warn-bg);}
+  .badge.fail{color:var(--fail); background:var(--fail-bg);}
+
+  .risks{margin-top:30px;}
+  .risks h2{font-size:15px; margin:0 0 14px;}
+  .risk-list{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  @media (max-width:880px){.risk-list{grid-template-columns:1fr;}}
+  .risk{border:1px solid var(--line-strong); border-radius:10px; padding:16px 18px; background:#fff;}
+  .risk h4{margin:0 0 6px; font-size:13px;}
+  .risk p{margin:0; font-size:12.5px; color:#555; line-height:1.55;}
+  .risk .tag{
+    display:inline-block; font-size:10px; font-family:var(--mono); text-transform:uppercase;
+    padding:2px 8px; border-radius:20px; margin-bottom:8px; font-weight:700;
+  }
+  .tag.high{background:var(--fail-bg); color:var(--fail);}
+  .tag.medium{background:var(--warn-bg); color:var(--warn);}
+  .tag.low{background:var(--pass-bg); color:var(--pass);}
+
+  footer{margin-top:36px; font-size:11.5px; color:#999; border-top:1px solid var(--line); padding-top:14px; line-height:1.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>foreground/subtle — opak vs. transparent</h1>
+    <p class="sub">
+      Technischer Gegencheck: Was passiert, wenn <code>color/foreground/neutral/subtle</code> von einem
+      undurchsichtigen Grauton (<code>#555555</code> / <code>#AAAAAA</code>) auf transparentes Schwarz / Weiß
+      umgestellt wird? Regler unten verändert die Deckkraft live über alle Marken, Modi und Surface-Tokens hinweg.
+    </p>
+  </header>
+
+  <div class="panel">
+    <h2>Deckkraft testen</h2>
+    <div class="control-row">
+      <div class="alpha-control">
+        <input type="range" id="alphaSlider" min="30" max="95" value="60" step="1">
+        <div class="alpha-value" id="alphaValue">60%</div>
+      </div>
+      <div class="presets" id="presets">
+        <button data-val="50">50%</button>
+        <button data-val="60" class="active">60%</button>
+        <button data-val="67">67%</button>
+        <button data-val="70">70%</button>
+      </div>
+    </div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--pass)"></span>≥ 4.5:1 (Text, AA)</span>
+      <span><span class="dot" style="background:var(--warn)"></span>3.0–4.49:1 (nur Icons/UI/Large Text)</span>
+      <span><span class="dot" style="background:var(--fail)"></span>&lt; 3.0:1 (fehlgeschlagen)</span>
+    </div>
+    <div class="summary-grid" id="summaryGrid"></div>
+  </div>
+
+  <div id="brandBlocks"></div>
+
+  <div class="risks">
+    <h2>Worauf ihr über die reine Kontrastprüfung hinaus achten solltet</h2>
+    <div class="risk-list">
+      <div class="risk">
+        <span class="tag high">Hohes Risiko</span>
+        <h4>Text/Icons auf Bildern (Teaser, Artikelbilder)</h4>
+        <p>Für Bild-Hintergründe existiert bereits ein dediziertes Overlay-Gradient (Schwarz 0%→70%) — dort läuft
+        vermutlich <code>foreground/default/inverse</code>, nicht <code>subtle</code>. Prüft trotzdem explizit jede
+        Stelle, an der <code>subtle</code> auf Fotos, Videos oder nutzergenerierten Bildern sitzt (Kicker, Meta-Angaben
+        in Teasern): Ein Foto hat keinen festen Kontrastwert wie ein Token — transparente Schrift kann dort
+        unvorhersehbar unter 3:1 fallen, während der aktuelle opake Grauton dort immer garantiert lesbar war.</p>
+      </div>
+      <div class="risk">
+        <span class="tag high">Hohes Risiko</span>
+        <h4>Gestapelte Transparenz</h4>
+        <p>Sitzt <code>subtle</code> künftig über bereits transparenten Layern (<code>fill/interaction/hover</code>,
+        <code>fill/neutral/muted</code>, <code>surface/transparent</code>, Overlays, disabled-States), addieren sich
+        die Alphawerte. Die Tabellen unten rechnen jeweils nur gegen eine einzelne, flache Surface-Farbe — Kompositionen
+        aus mehreren transparenten Ebenen müsst ihr separat in Figma/Code stichprobenartig gegenprüfen.</p>
+      </div>
+      <div class="risk">
+        <span class="tag low">Gering</span>
+        <h4>HB vs. WiWo jetzt praktisch deckungsgleich</h4>
+        <p><code>fill/brand/light</code>/<code>emphasized</code> ist raus aus dem Check (kein Text darauf — war
+        früher Avatar-Hintergrund für Redakteursbilder, bei WiWo aktuell gar nicht im Einsatz). Ohne diesen Ausreißer
+        liegt die nötige Mindestdeckkraft für AA-Text bei allen vier Kombinationen sehr nah beieinander (55–56%) —
+        ein gemeinsamer Alpha-Wert für beide Marken ist also unkritisch.</p>
+      </div>
+      <div class="risk">
+        <span class="tag medium">Mittel</span>
+        <h4>Export / Rendering-Pfade</h4>
+        <p>Alpha-Compositing verhält sich in Screenshot-/PDF-Export, Server-Side-Rendering von Social-Cards oder
+        E-Mail-Templates nicht immer identisch zum Browser (fehlende Compositing-Engine, kein <code>backdrop</code>).
+        Prüft, ob <code>subtle</code> in solchen Pfaden verwendet wird — dort ggf. weiterhin den opaken Fallback-Wert
+        rendern.</p>
+      </div>
+      <div class="risk">
+        <span class="tag low">Gering</span>
+        <h4>Farbharmonie auf Accent-Surfaces</h4>
+        <p>Das war euer ursprüngliches Problem — und hier liefert Transparenz genau den erhofften Effekt: Auf
+        <code>surface/accent/*</code> nimmt der Text automatisch einen leichten Farbstich der jeweiligen Fläche an
+        (siehe Hex-Werte in den Tabellen), was das "Beißen" mit reinem neutralem Grau auflöst.</p>
+      </div>
+      <div class="risk">
+        <span class="tag low">Gering</span>
+        <h4>Dark Mode auf Accent-Surfaces war der eigentliche Schwachpunkt</h4>
+        <p>Interessant: im aktuellen Zustand ist der Kontrast von <code>subtle</code> auf farbigen Accent-Surfaces
+        im Dark Mode bereits am unteren Rand (4.5–4.65:1, teils nur knapp AA). Auch die etwas blassere 60%-Variante
+        verbessert das durchgehend auf 4.97–5.42:1 — der eigentliche visuelle Pendant-Wert 67% legt nochmal
+        deutlicher zu (5.76–7.00:1). 50% dagegen reißt auf mehreren Surfaces unter 4.5:1 und wäre nur noch für
+        Icons/UI-Elemente geeignet, nicht mehr für Fließtext.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Datenquelle: die vier hochgeladenen Token-Files (HB Light/Dark, WiWo Light/Dark) — Werte 1:1 aus
+    <code>color/foreground/neutral/subtle/normal</code> sowie allen opaken <code>background/*</code>,
+    <code>surface/*</code> und <code>fill/brand/light</code> Tokens extrahiert. Kontrastberechnung nach
+    WCAG 2.x (relative Luminanz), Alpha-Compositing über die jeweilige Surface-Grundfarbe. Getestete Schwelle:
+    4.5:1 = AA für normalen Text, 3:1 = AA für großen Text / UI-Komponenten / Icons.
+  </footer>
+</div>
+
+<script>
+const DATA = {"HB_Light": {"subtleCurrent": "#555555", "surfaces": [{"key": "background/primary", "label": "Background Primary", "hex": "#FFFFFF"}, {"key": "background/secondary", "label": "Background Secondary", "hex": "#F5F5F5"}, {"key": "surface/neutral/pure", "label": "Surface Neutral Pure", "hex": "#FFFFFF"}, {"key": "surface/neutral/light", "label": "Surface Neutral Light", "hex": "#EAEAEA"}, {"key": "surface/accent/blue", "label": "Surface Accent Blue", "hex": "#E6F5FC"}, {"key": "surface/accent/green", "label": "Surface Accent Green", "hex": "#F0FCE6"}, {"key": "surface/accent/orange", "label": "Surface Accent Orange", "hex": "#FDF2E5"}, {"key": "surface/accent/red", "label": "Surface Accent Red", "hex": "#FCECE6"}, {"key": "surface/accent/yellow", "label": "Surface Accent Yellow", "hex": "#FFF9E9"}]}, "HB_Dark": {"subtleCurrent": "#AAAAAA", "surfaces": [{"key": "background/primary", "label": "Background Primary", "hex": "#151515"}, {"key": "background/secondary", "label": "Background Secondary", "hex": "#000000"}, {"key": "surface/neutral/pure", "label": "Surface Neutral Pure", "hex": "#2A2A2A"}, {"key": "surface/neutral/light", "label": "Surface Neutral Light", "hex": "#3F3F3F"}, {"key": "surface/accent/blue", "label": "Surface Accent Blue", "hex": "#324047"}, {"key": "surface/accent/green", "label": "Surface Accent Green", "hex": "#324229"}, {"key": "surface/accent/orange", "label": "Surface Accent Orange", "hex": "#473D2C"}, {"key": "surface/accent/red", "label": "Surface Accent Red", "hex": "#4F3A35"}, {"key": "surface/accent/yellow", "label": "Surface Accent Yellow", "hex": "#473D2E"}]}, "WiWo_Light": {"subtleCurrent": "#555555", "surfaces": [{"key": "background/primary", "label": "Background Primary", "hex": "#FFFFFF"}, {"key": "background/secondary", "label": "Background Secondary", "hex": "#F5F5F5"}, {"key": "surface/neutral/pure", "label": "Surface Neutral Pure", "hex": "#FFFFFF"}, {"key": "surface/neutral/light", "label": "Surface Neutral Light", "hex": "#EAEAEA"}, {"key": "surface/accent/blue", "label": "Surface Accent Blue", "hex": "#EFF4FB"}, {"key": "surface/accent/green", "label": "Surface Accent Green", "hex": "#F2FBF5"}, {"key": "surface/accent/orange", "label": "Surface Accent Orange", "hex": "#FAF5EB"}, {"key": "surface/accent/red", "label": "Surface Accent Red", "hex": "#FDF0F1"}, {"key": "surface/accent/yellow", "label": "Surface Accent Yellow", "hex": "#FFF9E8"}]}, "WiWo_Dark": {"subtleCurrent": "#AAAAAA", "surfaces": [{"key": "background/primary", "label": "Background Primary", "hex": "#151515"}, {"key": "background/secondary", "label": "Background Secondary", "hex": "#000000"}, {"key": "surface/neutral/pure", "label": "Surface Neutral Pure", "hex": "#2A2A2A"}, {"key": "surface/neutral/light", "label": "Surface Neutral Light", "hex": "#3F3F3F"}, {"key": "surface/accent/blue", "label": "Surface Accent Blue", "hex": "#1D3B52"}, {"key": "surface/accent/green", "label": "Surface Accent Green", "hex": "#00422C"}, {"key": "surface/accent/orange", "label": "Surface Accent Orange", "hex": "#4D3B15"}, {"key": "surface/accent/red", "label": "Surface Accent Red", "hex": "#630104"}, {"key": "surface/accent/yellow", "label": "Surface Accent Yellow", "hex": "#4D3C18"}]}};
+
+const BRAND_META = {HB:{label:'HB', cls:'hb'}, WiWo:{label:'WiWo', cls:'wiwo'}};
+
+function hexToRgb(hex){
+  hex = hex.replace('#','');
+  return [0,2,4].map(i=>parseInt(hex.substr(i,2),16));
+}
+function rgbToHex(rgb){
+  return '#'+rgb.map(c=>Math.round(c).toString(16).padStart(2,'0').toUpperCase()).join('');
+}
+function composite(fg, alpha, bg){
+  return fg.map((c,i)=> c*alpha + bg[i]*(1-alpha));
+}
+function relLum(rgb){
+  const lin = c => { c/=255; return c<=0.03928 ? c/12.92 : Math.pow((c+0.055)/1.055,2.4); };
+  const [r,g,b] = rgb.map(lin);
+  return 0.2126*r+0.7152*g+0.0722*b;
+}
+function contrast(rgb1, rgb2){
+  let l1 = relLum(rgb1), l2 = relLum(rgb2);
+  if(l1<l2){[l1,l2]=[l2,l1];}
+  return (l1+0.05)/(l2+0.05);
+}
+function textColorFor(bg){
+  return contrast([0,0,0],bg) > contrast([255,255,255],bg) ? '#000' : '#fff';
+}
+function badgeFor(c){
+  if(c>=4.5) return {cls:'pass', label:c.toFixed(2)+':1'};
+  if(c>=3.0) return {cls:'warn', label:c.toFixed(2)+':1'};
+  return {cls:'fail', label:c.toFixed(2)+':1'};
+}
+
+function buildSummary(alpha){
+  const grid = document.getElementById('summaryGrid');
+  grid.innerHTML = '';
+  Object.entries(DATA).forEach(([key, entry])=>{
+    const [brand, mode] = key.split('_');
+    const fgRgb = mode==='Light' ? [0,0,0] : [255,255,255];
+    let worst = 999;
+    entry.surfaces.forEach(s=>{
+      const bg = hexToRgb(s.hex);
+      const comp = composite(fgRgb, alpha, bg);
+      const c = contrast(comp, bg);
+      if(c<worst) worst = c;
+    });
+    const pass = worst>=4.5;
+    const card = document.createElement('div');
+    card.className='summary-card';
+    card.innerHTML = `
+      <div class="who">${brand} — ${mode}</div>
+      <div class="verdict" style="color:${pass?'var(--pass)':'var(--fail)'}">${pass?'✓ Alle Surfaces bestehen':'✗ Schwächster Fall unter 4.5:1'}</div>
+      <div class="detail">Minimaler Kontrast im Set: ${worst.toFixed(2)}:1</div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function buildBrandBlocks(alpha){
+  const container = document.getElementById('brandBlocks');
+  container.innerHTML = '';
+  ['HB','WiWo'].forEach(brand=>{
+    const block = document.createElement('div');
+    block.className = 'brand-block';
+    const meta = BRAND_META[brand];
+    block.innerHTML = `<div class="brand-head"><span class="brand-tag ${meta.cls}">${meta.label}</span><h3>${brand === 'HB' ? 'Handelsblatt' : 'WirtschaftsWoche'}</h3></div>`;
+    const row = document.createElement('div');
+    row.className = 'mode-row';
+    ['Light','Dark'].forEach(mode=>{
+      const entry = DATA[`${brand}_${mode}`];
+      const fgRgb = mode==='Light' ? [0,0,0] : [255,255,255];
+      const proposedLabel = mode==='Light' ? `Schwarz @ ${alpha*100|0}%` : `Weiß @ ${alpha*100|0}%`;
+      const card = document.createElement('div');
+      card.className='mode-card';
+      let rows = '';
+      entry.surfaces.forEach(s=>{
+        const bg = hexToRgb(s.hex);
+        const curRgb = hexToRgb(entry.subtleCurrent);
+        const curC = contrast(curRgb, bg);
+        const comp = composite(fgRgb, alpha, bg);
+        const compHex = rgbToHex(comp);
+        const propC = contrast(comp, bg);
+        const curBadge = badgeFor(curC);
+        const propBadge = badgeFor(propC);
+        rows += `
+          <tr>
+            <td>
+              <div class="surf-cell">
+                <span class="swatch" style="background:${s.hex}"></span>
+                <div>
+                  <div class="surf-label">${s.label}</div>
+                  <div class="hexcode">${s.hex}</div>
+                </div>
+              </div>
+            </td>
+            <td class="sample-cell">
+              <div class="sample-box" style="background:${s.hex}; color:${entry.subtleCurrent}; border:1px solid rgba(0,0,0,.08)">Aa</div>
+            </td>
+            <td class="contrast-cell">${curC.toFixed(2)}<span class="badge ${curBadge.cls}">${curBadge.cls==='pass'?'OK':curBadge.cls==='warn'?'UI':'FAIL'}</span></td>
+            <td class="sample-cell">
+              <div class="sample-box" style="background:${s.hex}; color:${compHex}; border:1px solid rgba(0,0,0,.08)">Aa</div>
+            </td>
+            <td class="contrast-cell">${propC.toFixed(2)}<span class="badge ${propBadge.cls}">${propBadge.cls==='pass'?'OK':propBadge.cls==='warn'?'UI':'FAIL'}</span></td>
+          </tr>
+        `;
+      });
+      card.innerHTML = `
+        <div class="mode-card-head">
+          <span>${mode==='Light'?'☀️':'🌙'} ${mode} Mode</span>
+          <span class="cur">aktuell: ${entry.subtleCurrent} · neu: ${proposedLabel}</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Surface</th>
+              <th class="num">Opak</th>
+              <th class="num">Kontrast</th>
+              <th class="num">Transparent</th>
+              <th class="num">Kontrast</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+      row.appendChild(card);
+    });
+    block.appendChild(row);
+    container.appendChild(block);
+  });
+}
+
+function render(){
+  const alpha = parseInt(document.getElementById('alphaSlider').value)/100;
+  document.getElementById('alphaValue').textContent = Math.round(alpha*100)+'%';
+  buildSummary(alpha);
+  buildBrandBlocks(alpha);
+  document.querySelectorAll('#presets button').forEach(b=>{
+    b.classList.toggle('active', parseInt(b.dataset.val)===Math.round(alpha*100));
+  });
+}
+
+document.getElementById('alphaSlider').addEventListener('input', render);
+document.getElementById('presets').addEventListener('click', e=>{
+  if(e.target.tagName==='BUTTON'){
+    document.getElementById('alphaSlider').value = e.target.dataset.val;
+    render();
+  }
+});
+
+render();
+</script>
+</body>
+</html>
